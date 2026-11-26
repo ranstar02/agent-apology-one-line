@@ -13,14 +13,42 @@ ENTRY = (
     "to notice."
 )
 
+MAX_LENGTH = 200
 
-def choose_path() -> str:
-    """Prefer /output/entry.txt, fall back to ./output/entry.txt."""
+
+def validate_entry(text: str) -> dict:
+    """Check that ``text`` is exactly one clean sentence.
+
+    Returns a small report (character count, sentence count, path of the
+    checks passed) so main() can print what was verified. Raises
+    AssertionError on the first failing check.
+    """
+    assert text, "entry must not be empty"
+    assert text == text.strip(), "entry must not start or end with whitespace"
+    assert "\n" not in text and "\r" not in text, "entry must contain no newline"
+    assert 1 <= len(text) <= MAX_LENGTH, "entry must be 1-200 characters"
+    assert text.endswith("."), "entry must end with a full stop"
+    assert text.count(".") == 1, "entry must contain exactly one full stop"
+    assert "sorry" in text.lower(), "entry must actually apologise"
+    assert "  " not in text, "entry must not contain double spaces"
+    return {
+        "characters": len(text),
+        "sentences": text.count("."),
+        "ends_with_period": text.endswith("."),
+        "has_newline": False,
+    }
+
+
+def write_entry(text: str) -> str:
+    """Write ``text`` to /output/entry.txt, falling back to ./output.
+
+    Returns the path that was actually written.
+    """
     for candidate in ("/output/entry.txt", "output/entry.txt"):
         try:
             os.makedirs(os.path.dirname(candidate) or ".", exist_ok=True)
             with open(candidate, "w", encoding="utf-8") as handle:
-                handle.write(ENTRY)
+                handle.write(text)
             return candidate
         except OSError:
             continue
@@ -28,18 +56,19 @@ def choose_path() -> str:
 
 
 def main() -> None:
-    assert ENTRY.strip(), "entry must not be empty or only whitespace"
-    assert 1 <= len(ENTRY) <= 200, "entry must be 1-200 characters"
-    assert ENTRY.count(".") == 1, "entry must be exactly one sentence"
-
-    path = choose_path()
+    report = validate_entry(ENTRY)
+    path = write_entry(ENTRY)
 
     with open(path, encoding="utf-8") as handle:
         written = handle.read()
     assert written == ENTRY, "round-trip mismatch: file differs from ENTRY"
 
     print(ENTRY)
-    print(f"characters: {len(ENTRY)}")
+    print("validation: OK")
+    print(f"characters: {report['characters']}")
+    print(f"sentences: {report['sentences']}")
+    print(f"ends with period: {report['ends_with_period']}")
+    print(f"contains newline: {report['has_newline']}")
     print(f"written to: {path}")
 
 
